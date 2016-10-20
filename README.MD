@@ -46,11 +46,11 @@ CHECK_TIME_INTERVAL = 12*3600  # check per half day.
 ### 策略
 
 * 每天如下5个代理ip网站上抓下最新高匿ip数据：
-  * mimi
-  * 66ip
-  * xici
-  * cn-proxy
-  * kuaidaili
+  * ```mimi```
+  * ```66ip```
+  * ```xici```
+  * ```cn-proxy```
+  * ```kuaidaili```
 * N轮筛选
   * 收集到的ip集合将经过N轮，间隔为t的连接测试，对于每一个ip，必须全部通过这N轮测试才能最终进入数据库。如果当天进入数据库的ip较少，则暂停一段时间（一天）再抓。
 
