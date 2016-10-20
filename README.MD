@@ -18,7 +18,7 @@
 * 存入数据库的ip每天也要经过测试，存在剔除、评分机制，多次不合格的ip将被删除，每个ip都被评分，我们最终可以按得分排名获得稳定、低响应时间的优质ip。
    
 存储如下图所示：
-![](ip.png)
+![ip在数据库中的存储结构](https://github.com/fancoo/Proxy/blob/master/images/data.png)
 
 
 ### 参数
