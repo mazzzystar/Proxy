@@ -1,6 +1,6 @@
 ### 提示
 
-我忘记创建数据库了， 格式为：
+你需要先自行创建数据库， 格式为：
 
 * content				varchar(30)
 * test_times			int  
