@@ -55,5 +55,6 @@ CHECK_TIME_INTERVAL = 12*3600  # check per half day.
   * 收集到的ip集合将经过N轮，间隔为t的连接测试，对于每一个ip，必须全部通过这N轮测试才能最终进入数据库。如果当天进入数据库的ip较少，则暂停一段时间（一天）再抓。
 
 * 数据库中ip评价准则
-  * 检测过程中累计超时次数>```USELESS_TIME```&&成功率<```SUCCESS_RATE```就被剔除。
-```score = (success_rate + test_times / 500) / avg_response_time```， 原来的考虑是```score = success_rate / avg_response_time```, 即：评分=成功率/平均响应时间， 考虑到检测合格过100次的老ip比新ip更有价值，检测次数也被引入评分。
+  * 检测过程中累计超时次数>```USELESS_TIME```&&成功率<```SUCCESS_RATE```就被剔除。  
+  ```score = (success_rate + test_times / 500) / avg_response_time```  
+  原来的考虑是```score = success_rate / avg_response_time```, 即：评分=成功率/平均响应时间， 考虑到检测合格过100次的老ip比新ip更有价值，检测次数也被引入评分。
