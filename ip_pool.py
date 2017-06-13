@@ -298,7 +298,7 @@ def get_all_ip(page, conn):
 # Use http://lwons.com/wx to test if the server is available.
 def get_valid_proxies(proxies, timeout):
     # You may change the url by yourself if it didn't work.
-    url = 'http://lwons.com/wx'
+    url = 'http://httpbin.org/get?show_env=1'
     results = []
     for p in proxies:
         proxy = {'http': 'http://'+p}
@@ -307,7 +307,7 @@ def get_valid_proxies(proxies, timeout):
             start = time.time()
             r = requests.get(url, proxies=proxy, timeout=timeout)
             end = time.time()
-            if r.text == 'default':
+            if r.text is not None:
                 succeed = True
         except Exception, e:
             print 'error:', p
