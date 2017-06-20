@@ -1,427 +1,284 @@
-# -*- coding:utf-8 -*-
-import sys
-import requests
+# coding:utf-8
 import time
-import datetime
-import random
-import logging
-from bs4 import BeautifulSoup
+import config as cfg
+import requests
 from lxml import etree
 import pymysql as mdb
-# import MySQLdb as mdb
-reload(sys)
-sys.setdefaultencoding('utf-8')
-
-log_file = 'acquire_logger.log'
-logging.basicConfig(filename=log_file, level=logging.WARNING)
-
-# database config
-config = {
-    'host': '127.0.0.1',
-    'port': 3306,
-    'user': 'root',
-    'passwd': '*****',
-    'db': 'proxy',
-    'charset': 'utf8'
-}
-TABLE_NAME = 'valid_ip'
-# conn = mdb.connect(**config)
-# cursor = conn.cursor()
-
-flag = 0
-proxy_list = []
-# ip_file = "ip.txt"
+import datetime
 
 
-def query_insert(ip_list, full_ip, conn):
-    # Only when full_ip not in Database, insert it into ip_list.
-    try:
-        cursor = conn.cursor()
-        ipExist = cursor.execute('SELECT * FROM %s WHERE content= "%s"' % (TABLE_NAME, full_ip))
-        if not ipExist:
-            # ip not in database
-            ip_list.append(full_ip)
-            print full_ip + " is new!"
-            logging.warning(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + full_ip + \
-                            " has been accepted as new ip.")
-        else:
-            print full_ip + " is old!"
-            logging.warning(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + full_ip + \
-                            " already exists!")
-    except Exception as e:
-        logging.error(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + str(e))
-
-
-# Get all <66ip> ip in a specified page
-def get_66ip(page, conn):
-    ip_list = []
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
-    url = 'http://www.66ip.cn/areaindex_1/'+str(page)+'.html'  # The ip resources url
-    url_xpath = '/html/body/div[last()]//table//tr[position()>1]/td[1]/text()'
-    port_xpath = '/html/body/div[last()]//table//tr[position()>1]/td[2]/text()'
-    try:
-        if flag == 0:  # if the first time
-            results = requests.get(url, headers=headers, timeout=4)
-        else:
-            rd = random.randint(0, len(proxy_list) - 1)
-            proxy_ip = proxy_list[rd]
-            proxy = {'http': 'http://'+proxy_ip}
-            results = requests.get(url, headers=headers, proxies=proxy, timeout=4)
-        tree = etree.HTML(results.text)
-        url_results = tree.xpath(url_xpath)  # Get ip
-        # print url_results
-        port_results = tree.xpath(port_xpath)  # Get port
-        urls = [line.strip() for line in url_results]
-        ports = [line.strip() for line in port_results]
-        if len(urls) != len(ports):
-            print "No! It's crazy!"
-        else:
-            for i in range(len(urls)):
-                # Match each ip with it's port
-                full_ip = urls[i]+":"+ports[i]
-                # judge if already in database
-                if flag == 1:
-                    query_insert(ip_list, full_ip, conn)
-                else:
-                    print full_ip
-                    ip_list.append(full_ip)
-        return ip_list
-    except Exception, e:
-            print 'get proxies error: ', e
-            return ip_list
-
-
-# Get all #cn-proxy# ip in a specified page
-def get_cnip(conn):
-    ip_list = []
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
-        url = 'http://cn-proxy.com/'  # The ip resources url
-        url_xpath = '/html/body//table[@class="sortable"]//tr[position()>2]/td[1]/text()'
-        port_xpath = '/html/body//table[@class="sortable"]//tr[position()>2]/td[2]/text()'
-        if flag == 0:  # if the first time
-            results = requests.get(url, headers=headers, timeout=4)
-        else:
-            rd = random.randint(0, len(proxy_list) - 1)
-            proxy_ip = proxy_list[rd]
-            proxy = {'http': 'http://'+proxy_ip}
-            results = requests.get(url, headers=headers, proxies=proxy, timeout=4)
-        tree = etree.HTML(results.text)
-        url_results = tree.xpath(url_xpath)  # Get ip
-        # print url_results
-        port_results = tree.xpath(port_xpath)  # Get port
-        urls = [line.strip() for line in url_results]
-        ports = [line.strip() for line in port_results]
-        ip_list = []
-        if len(urls) != len(ports):
-            print "No! It's crazy!"
-        else:
-            for i in range(len(urls)):
-                # Match each ip with it's port
-                full_ip = urls[i]+":"+ports[i]
-                if flag == 1:
-                    # if not the first
-                    query_insert(ip_list, full_ip, conn)
-                else:
-                    print full_ip
-                    ip_list.append(full_ip)
-        return ip_list
-    except Exception, e:
-            print 'get proxies error: ', e
-            return ip_list
-
-
-# Get all #xici# ip in a specified page
-def get_xici(page, conn):
-    ip_list = []
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
-        url = 'http://www.xicidaili.com/nn/'+str(page)  # The ip resources url
-        # url_xpath = '/html/body//table[@class="sortable"]//tr[position()>2]/td[1]/text()'
-        # port_xpath = '/html/body//table[@class="sortable"]//tr[position()>2]/td[2]/text()'
-        if flag == 0:  # if the first time
-            results = requests.get(url, headers=headers, timeout=4)
-        else:
-            rd = random.randint(0, len(proxy_list) - 1)
-            proxy_ip = proxy_list[rd]
-            proxy = {'http': 'http://'+proxy_ip}
-            results = requests.get(url, headers=headers, proxies=proxy, timeout=4)
-        soup = BeautifulSoup(results.text)
-        ip = []
-        port = []
-        for s in soup.find("table").find_all("tr")[1:]:
-            try:
-                d = s.find_all("td")
-                ip.append(str(d[1].string))
-                port.append(str(d[2].string))
-            except Exception as e:
-                    print ('XiCiDaiLi parse error: %s', e)
-        ip_list = []
-        if len(ip) != len(port):
-            print "No! It's crazy!"
-        else:
-            for i in range(len(ip)):
-                # Match each ip with it's port
-                full_ip = ip[i]+":"+port[i]
-                if flag == 1:
-                    query_insert(ip_list, full_ip, conn)
-                else:
-                    print full_ip
-                    ip_list.append(full_ip)
-        return ip_list
-    except Exception, e:
-            print 'get proxies error: ', e
-            return ip_list
-
-
-# Get all #kuaidaili# ip in a specified page
-def get_kuaidaili(page, conn):
-    ip_list = []
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
-        url = 'http://www.kuaidaili.com/free/inha/'+str(page)+'/'  # The ip resources url
-        url_xpath = '//td[@data-title="IP"]/text()'
-        port_xpath = '//td[@data-title="PORT"]/text()'
-        if flag == 0:  # if the first time
-            results = requests.get(url, headers=headers, timeout=4)
-        else:
-            rd = random.randint(0, len(proxy_list) - 1)
-            proxy_ip = proxy_list[rd]
-            proxy = {'http': 'http://'+proxy_ip}
-            results = requests.get(url, headers=headers, proxies=proxy, timeout=4)
-        tree = etree.HTML(results.text)
-        url_results = tree.xpath(url_xpath)  # Get ip
-        # print url_results
-        port_results = tree.xpath(port_xpath)  # Get port
-        urls = [line.strip() for line in url_results]
-        ports = [line.strip() for line in port_results]
-        ip_list = []
-        if len(urls) != len(ports):
-            print "No! It's crazy!"
-        else:
-            for i in range(len(urls)):
-                # Match each ip with it's port
-                full_ip = urls[i]+":"+ports[i]
-                if flag == 1:
-                    query_insert(ip_list, full_ip, conn)
-                else:
-                    print full_ip
-                    ip_list.append(full_ip)
-        return ip_list
-    except Exception, e:
-            print 'get proxies error: ', e
-            return ip_list
-
-
-# Get all #mimi# ip in a specified page
-def get_mimi(page, conn):
-    ip_list = []
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
-        url = 'http://www.mimiip.com/gngao/'+str(page)  # The ip resources url
-        url_xpath = '//table[@class="list"]//tr[position()>1]/td[1]/text()'
-        port_xpath = '//table[@class="list"]//tr[position()>1]/td[2]/text()'
-        if flag == 0:  # if the first time
-            results = requests.get(url, headers=headers, timeout=4)
-        else:
-            rd = random.randint(0, len(proxy_list) - 1)
-            proxy_ip = proxy_list[rd]
-            proxy = {'http': 'http://'+proxy_ip}
-            results = requests.get(url, headers=headers, proxies=proxy, timeout=4)
-        tree = etree.HTML(results.text)
-        url_results = tree.xpath(url_xpath)  # Get ip
-        # print url_results
-        port_results = tree.xpath(port_xpath)  # Get port
-        urls = [line.strip() for line in url_results]
-        ports = [line.strip() for line in port_results]
-        ip_list = []
-        if len(urls) != len(ports):
-            print "No! It's crazy!"
-        else:
-            for i in range(len(urls)):
-                # Match each ip with it's port
-                full_ip = urls[i]+":"+ports[i]
-                if flag == 1:
-                    query_insert(ip_list, full_ip, conn)
-                else:
-                    print full_ip
-                    ip_list.append(full_ip)
-        return ip_list
-    except Exception, e:
-            print 'get proxies error: ', e
-            return ip_list
-
-
-#  Get all ip in 0~page pages website
-def get_all_ip(page, conn):
-    ip_list = []
-    # mimi
-    print ">>>>>mimi<<<<"
-    for i in range(page):
-        cur_ip_list = get_mimi(i+1, conn)
-        for item in cur_ip_list:
-            ip_list.append(item)
-
-    # 66ip
-    print ">>>>>66ip<<<<"
-    for i in range(page):
-        cur_ip_list = get_66ip(i+1, conn)
-        for item in cur_ip_list:
-            ip_list.append(item)
-
-    # xici
-    print ">>>>>xici<<<<"
-    for i in range(page):
-        cur_ip_list = get_xici(i+1, conn)
-        for item in cur_ip_list:
-            ip_list.append(item)
-
-    # cn-proxy
-    print ">>>>>cnproxy<<<<"
-    cnproxy_ip = get_cnip(conn)
-    if len(cnproxy_ip) != 0:
-        for j in cnproxy_ip:
-            ip_list.append(j)
-
-    # kuaidaili
-    print ">>>>>kuaidaili<<<<"
-    for i in range(page):
-        cur_ip_list = get_kuaidaili(i+1, conn)
-        for item in cur_ip_list:
-            ip_list.append(item)
-
-    # for item in ip_list:
-    #     print item
-    return ip_list
-
-
-# Use http://lwons.com/wx to test if the server is available.
-def get_valid_proxies(proxies, timeout):
-    # You may change the url by yourself if it didn't work.
-    url = 'http://httpbin.org/get?show_env=1'
-    results = []
-    for p in proxies:
-        proxy = {'http': 'http://'+p}
-        succeed = False
-        try:
-            start = time.time()
-            r = requests.get(url, proxies=proxy, timeout=timeout)
-            end = time.time()
-            if r.text is not None:
-                succeed = True
-        except Exception, e:
-            print 'error:', p
-            succeed = False
-        if succeed:
-            print 'succeed: '+p+'\t'+str(end-start)
-            results.append(p)
-        time.sleep(0.5)  # Avoid frequently crawling
-    results = list(set(results))
-    return results
-
-
-def get_the_best(round, proxies, timeout, sleeptime):
+class IPFactory:
     """
-    ========================================================
-    With the strategy of N round test to find those secure
-    and stable ip. During each round it will sleep a while to
-    avoid a 'famous 15 minutes"
-    ========================================================"""
-    for i in range(round):
-        print '\n'
-        print ">>>>>>>Round\t"+str(i+1)+"<<<<<<<<<<"
-        proxies = get_valid_proxies(proxies, timeout)
-        if i != round - 1:
-            time.sleep(sleeptime)
-    return proxies
+    代理ip抓取/评估/存储一体化。
+    """
+    def __init__(self):
+        self.page_num = cfg.page_num
+        self.round = cfg.examine_round
+        self.timeout = cfg.timeout
+        self.all_ip = set()
 
+        # 创建数据库
+        self.create_db()
 
-# def get_mimi_proxy(page, mimi_proxies, round, timeout, sleeptime):
-#     mimi_ip_list = []
-#     for i in range(page):
-#         cur_ip_list = get_mimi(i+1, mimi_proxies)
-#         time.sleep(1)
-#         for item in cur_ip_list:
-#             mimi_ip_list.append(item)
-#     for i in range(round):
-#         print '\n'
-#         print ">>>>>>>MiMi Round\t"+str(i+1)+"<<<<<<<<<<"
-#         mimi_ip_list = get_valid_proxies(mimi_ip_list, timeout)
-#         if i != round - 1:
-#             time.sleep(sleeptime)
-#     return mimi_ip_list
+        # # 抓取全部ip
+        # current_ips = self.get_all_ip()
+        # # 获取有效ip
+        # valid_ip = self.get_the_best(current_ips, self.timeout, self.round)
+        # print valid_ip
 
+    def create_db(self):
+        """
+        创建数据库用于保存有效ip
+        """
+        # 创建数据库/表语句
+        # 创建数据库
+        drop_db_str = 'drop database if exists ' + cfg.DB_NAME + ' ;'
+        create_db_str = 'create database ' + cfg.DB_NAME + ' ;'
+        # 选择该数据库
+        use_db_str = 'use ' + cfg.DB_NAME + ' ;'
+        # 创建表格
+        create_table_str = "CREATE TABLE " + cfg.TABLE_NAME + """(
+          `content` varchar(30) NOT NULL,
+          `test_times` int(5) NOT NULL DEFAULT '0',
+          `failure_times` int(5) NOT NULL DEFAULT '0',
+          `success_rate` float(5,2) NOT NULL DEFAULT '0.00',
+          `avg_response_time` float NOT NULL DEFAULT '0',
+          `score` float(5,2) NOT NULL DEFAULT '0.00'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;"""
 
-def get_proxies(page, round, timeout, sleep, conn):
-    ip_list = get_all_ip(page, conn)
-    proxies = get_the_best(round, ip_list, timeout, sleep)  # The suggested parameters
-    return proxies
-
-
-def store(page):
-    global flag
-    global proxy_list
-    proxy_list = []
-    conn = mdb.connect(**config)
-    cursor = conn.cursor()
-    if flag == 1:
-        # Use proxy to crawl web
+        # 连接数据库
+        conn = mdb.connect(cfg.host, cfg.user, cfg.passwd)
+        cursor = conn.cursor()
         try:
-            cursor.execute('select count(*) from  %s ' % TABLE_NAME)
-            length = 0
-            for r in cursor:
-                length = r[0]
-            cursor.execute('SELECT * FROM %s LIMIT %d, %d' % (TABLE_NAME, length-20, length-5))
-            result = cursor.fetchall()
-            for i in result:
-                proxy_list.append(i[0])
+            cursor.execute(drop_db_str)
+            cursor.execute(create_db_str)
+            cursor.execute(use_db_str)
+            cursor.execute(create_table_str)
+            conn.commit()
+        except OSError:
+            print "无法创建数据库！"
+        finally:
+            cursor.close()
+            conn.close()
+
+    def get_content(self, url, url_xpath, port_xpath):
+        """
+        使用xpath解析网页内容,并返回ip列表。
+        """
+        # 返回列表
+        ip_list = []
+
+        try:
+            # 设置请求头信息
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
+
+            # 获取页面数据
+            results = requests.get(url, headers=headers, timeout=4)
+            tree = etree.HTML(results.text)
+
+            # 提取ip:port
+            url_results = tree.xpath(url_xpath)
+            port_results = tree.xpath(port_xpath)
+            urls = [line.strip() for line in url_results]
+            ports = [line.strip() for line in port_results]
+
+            if len(urls) == len(ports):
+                for i in range(len(urls)):
+                    # 匹配ip:port对
+                    full_ip = urls[i]+":"+ports[i]
+                    # 此处利用all_ip对过往爬取的ip做了记录，下次再爬时如果发现
+                    # 已经爬过，就不再加入ip列表。
+                    if full_ip in self.all_ip:
+                        continue
+                    # 存储
+                    ip_list.append(full_ip)
         except Exception as e:
-            logging.error(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + \
-                          " Use proxy to crawl web error! " + str(e))
-    proxies = get_proxies(page, 3, 2.5, 1200, conn)  # 6, 5, 2.5, 1200
-    print "\n\n\n"
-    print ">>>>>>>>>>>>>>>>>>>The Final Ip<<<<<<<<<<<<<<<<<<<<<<"
-    for item in proxies:
-        print item
+            print 'get proxies error: ', e
+
+        return ip_list
+
+    def get_all_ip(self):
+        """
+        各大网站抓取的ip聚合。
+        """
+        # 有2个概念：all_ip和current_all_ip。前者保存了历次抓取的ip，后者只保存本次的抓取。
+        current_all_ip = set()
+
+        ##################################
+        # 66ip网
+        ###################################
+        url_xpath_66 = '/html/body/div[last()]//table//tr[position()>1]/td[1]/text()'
+        port_xpath_66 = '/html/body/div[last()]//table//tr[position()>1]/td[2]/text()'
+        for i in xrange(self.page_num):
+            url_66 = 'http://www.66ip.cn/' + str(i+1) + '.html'
+            results = self.get_content(url_66, url_xpath_66, port_xpath_66)
+            self.all_ip.update(results)
+            current_all_ip.update(results)
+            # 停0.5s再抓取
+            time.sleep(0.5)
+
+        ##################################
+        # xici代理
+        ###################################
+        url_xpath_xici = '//table[@id="ip_list"]//tr[position()>1]/td[position()=2]/text()'
+        port_xpath_xici = '//table[@id="ip_list"]//tr[position()>1]/td[position()=3]/text()'
+        for i in xrange(self.page_num):
+            url_xici = 'http://www.xicidaili.com/nn/' + str(i+1)
+            results = self.get_content(url_xici, url_xpath_xici, port_xpath_xici)
+            self.all_ip.update(results)
+            current_all_ip.update(results)
+            time.sleep(0.5)
+
+        ##################################
+        # mimiip网
+        ###################################
+        url_xpath_mimi = '//table[@class="list"]//tr[position()>1]/td[1]/text()'
+        port_xpath_mimi = '//table[@class="list"]//tr[position()>1]/td[2]/text()'
+        for i in xrange(self.page_num):
+            url_mimi = 'http://www.mimiip.com/gngao/' + str(i+1)
+            results = self.get_content(url_mimi, url_xpath_mimi, port_xpath_mimi)
+            self.all_ip.update(results)
+            current_all_ip.update(results)
+            time.sleep(0.5)
+
+        ##################################
+        # kuaidaili网
+        ###################################
+        url_xpath_kuaidaili = '//td[@data-title="IP"]/text()'
+        port_xpath_kuaidaili = '//td[@data-title="PORT"]/text()'
+        for i in xrange(self.page_num):
+            url_kuaidaili = 'http://www.kuaidaili.com/free/inha/' + str(i+1) + '/'
+            results = self.get_content(url_kuaidaili, url_xpath_kuaidaili, port_xpath_kuaidaili)
+            self.all_ip.update(results)
+            current_all_ip.update(results)
+            time.sleep(0.5)
+
+        return current_all_ip
+
+    def get_valid_ip(self, ip_set, timeout):
+        """
+        代理ip可用性测试
+        """
+        # 设置请求地址
+        url = 'https://www.baidu.com'
+
+        # 可用代理结果
+        results = set()
+
+        # 挨个检查代理是否可用
+        for p in ip_set:
+            proxy = {'http': 'http://'+p}
+            try:
+                # 请求开始时间
+                start = time.time()
+                r = requests.get(url, proxies=proxy, timeout=timeout)
+                # 请求结束时间
+                end = time.time()
+                # 判断是否可用
+                if r.text is not None:
+                    print 'succeed: ' + p + '\t' + " in " + format(end-start, '0.2f') + 's'
+                    # 追加代理ip到返回的set中
+                    results.add(p)
+            except OSError:
+                print 'timeout:', p
+
+        return results
+
+    def get_the_best(self, valid_ip, timeout, round):
+        """
+        N轮检测ip列表，避免"辉煌的15分钟"
+        """
+        # 循环检查次数
+        for i in range(round):
+            print "\n>>>>>>>\tRound\t"+str(i+1)+"\t<<<<<<<<<<"
+            # 检查代理是否可用
+            valid_ip = self.get_valid_ip(valid_ip, timeout)
+            # 停一下
+            if i < round-1:
+                time.sleep(30)
+
+        # 返回可用数据
+        return valid_ip
+
+    def save_to_db(self, valid_ips):
+        """
+        将可用的ip存储进mysql数据库
+        """
+        if len(valid_ips) == 0:
+            print "本次没有抓到可用ip。"
+            return
+        # 连接数据库
+        print "\n>>>>>>>>>>>>>>>>>>>> 代理数据入库处理 Start  <<<<<<<<<<<<<<<<<<<<<<\n"
+        conn = mdb.connect(cfg.host, cfg.user, cfg.passwd, cfg.DB_NAME)
+        cursor = conn.cursor()
         try:
-            ipExist = cursor.execute('SELECT * FROM %s WHERE content= "%s"' % (TABLE_NAME, item))
-            if not ipExist:
-                n = cursor.execute('INSERT INTO %s VALUES ("%s", 1, 0, 0, 1.0, 2.5, 0.0)' % (TABLE_NAME, item))
-                conn.commit()
-                if n:
-                    logging.warning(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + item + \
-                                    " has been accepted as new ip in the " + str(n) + " row.")
+            for item in valid_ips:
+                # 检查表中是否存在数据
+                item_exist = cursor.execute('SELECT * FROM %s WHERE content="%s"' %(cfg.TABLE_NAME, item))
+
+                # 新增代理数据入库
+                if item_exist == 0:
+                    # 插入数据
+                    n = cursor.execute('INSERT INTO %s VALUES("%s", 1, 0, 0, 1.0, 2.5)' %(cfg.TABLE_NAME, item))
+                    conn.commit()
+
+                    # 输出入库状态
+                    if n:
+                        print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+item+" 插入成功。\n"
+                    else:
+                        print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+item+" 插入失败。\n"
+
                 else:
-                    logging.error(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + item + \
-                                  " insert failure!")
-            else:
-                logging.warning(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + item + \
-                                " is not been inserted as it already exists.")
+                    print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+ item +" 已存在。\n"
         except Exception as e:
-            logging.critical(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+": " + str(e))
-    conn.close()
-    flag = 1
-    if len(proxies) < 40:
-        time.sleep(24*3600)
+            print "入库失败：" + str(e)
+        finally:
+            cursor.close()
+            conn.close()
+        print "\n>>>>>>>>>>>>>>>>>>>> 代理数据入库处理 End  <<<<<<<<<<<<<<<<<<<<<<\n"
+
+    def get_proxies(self):
+        ip_list = []
+
+        # 连接数据库
+        conn = mdb.connect(cfg.host, cfg.user, cfg.passwd, cfg.DB_NAME)
+        cursor = conn.cursor()
+
+        # 检查数据表中是否有数据
+        try:
+            ip_exist = cursor.execute('SELECT * FROM %s ' % cfg.TABLE_NAME)
+
+            # 提取数据
+            result = cursor.fetchall()
+
+            # 若表里有数据　直接返回，没有则抓取再返回
+            if len(result):
+                for item in result:
+                    ip_list.append(item[0])
+            else:
+                # 获取代理数据
+                current_ips = self.get_all_ip()
+                valid_ips = self.get_the_best(current_ips, self.timeout, self.round)
+                self.save_to_db(valid_ips)
+                ip_list.extend(valid_ips)
+        except Exception as e:
+            print "从数据库获取ip失败！"
+        finally:
+            cursor.close()
+            conn.close()
+
+        return ip_list
 
 
 def main():
+    ip_pool = IPFactory()
     while True:
-        store(3)
-        time.sleep(24*3600)
+        current_ips = ip_pool.get_all_ip()
+        # 获取有效ip
+        valid_ip = ip_pool.get_the_best(current_ips, cfg.timeout, cfg.examine_round)
+        print valid_ip
+        ip_pool.save_to_db(valid_ip)
+        time.sleep(cfg.CHECK_TIME_INTERVAL)
 
 if __name__ == '__main__':
     main()
-
-# TODO:
-# 1. 把经过一次循环的存进数据库，对于新的ip，在round之前就判断其
-# 是不是已经被收纳了，(或者曾经收纳后被淘汰过，此处放弃），如果不是再进入round
-# 2. 对于一次过后就放入数据库proxy下的表valid_ip，之后每天对
-# 3. 那个抓新ip并检测的程序永久运行，每次运行完都sleep3小时接着运行。
-# 在database中新加一个字段，avg_response_time
-# 再增加一个字段，score，score = success_rate / avg_response_time
-# 每天crawl一遍新的ip，如果抓到的有用ip小于100，则养一天，后天再抓
-# 每半天对存进数据库里的ip检测一次，对ping不通的判断其是否累积超过4&&20%, 超过
-# 则从数据库删除。
-# 4. 加一个新字段， test_times，统计该ip被检测次数， 因为不能让所有的ip共用一个test_times。
-# 现在score = (success_rate + float(test_times) / 500) / avg_response_time, 即评价标准中引入test_times

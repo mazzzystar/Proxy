@@ -1,17 +1,5 @@
 一个小巧的代理ip抓取+评估+存储一体化的工具,使用requests+mysql完成。
 
-
-### 提示
-
-你需要先自行创建数据库， 格式为：
-
-* content				varchar(30)
-* test_times			int  
-* failure_times		    int
-* success_rate	 		float
-* avg_response_time	    float
-* score				    float
-
 ### 简介
 
 程序有如下几个功能：
@@ -26,24 +14,16 @@
 
 ### 参数
 ```python
-USELESS_TIME = 4   # maximum number of failures
+USELESS_TIME = 4   # 最大失效次数
 SUCCESS_RATE = 0.8
-TIME_OUT_PENALTY = 10  # when timeout, set a penalty
-CHECK_TIME_INTERVAL = 12*3600  # check per half day.
+TIME_OUT_PENALTY = 10  # 超时惩罚时间
+CHECK_TIME_INTERVAL = 24*3600  # 每天更新一次
 ```
 除数据库配置参数外，主要用到的几个参数说明如下：
 
 * ```USELESS_TIME```和```SUCCESS_RATE```是配合使用的，当某个```ip```的```USELESS_TIME < 4 && SUCCESS_RATE < 0.8```时（同时兼顾到ip短期和长期的检测表现），则剔除该ip。
 * ```TIME_OUT_PENALTY```， 当某个ip在某次检测时失效，而又没有达到上一条的条件时（比如检测了100次后第一次出现超时），设置一个```response_time```的惩罚项，此处为10秒。
 * ```CHECK_TIME_INTERVAL```， 检测周期。此处设置为每隔12小时检测一次数据库里每一个ip的可用性。
-
-### 使用
-
-
-* 如要运行程序：
-  * 有```ip_pool.py```和```assess_quality.py```两个程序，前者负责每天抓ip存进数据库，后者负责数据库中ip的清理和评估。搭建好数据库，就可以直接运行该程序。
-* 如要使用ip：
-  * 从数据库中按照```score```排名获取就可以。
 
 
 ### 策略
@@ -61,3 +41,20 @@ CHECK_TIME_INTERVAL = 12*3600  # check per half day.
   * 检测过程中累计超时次数>```USELESS_TIME```&&成功率<```SUCCESS_RATE```就被剔除。  
   ```score = (success_rate + test_times / 500) / avg_response_time```  
   原来的考虑是```score = success_rate / avg_response_time```, 即：评分=成功率/平均响应时间， 考虑到检测合格过100次的老ip比新ip更有价值，检测次数也被引入评分。
+
+### 使用
+
+#### 运行程序
+有`ip_pool.py`和`assess_quality.py`两个程序，前者负责每天抓ip存进数据库，后者负责数据库中ip的清理和评估。
+```bash
+python ip_pool.py
+# 等待上述程序抓取完结果后再运行评测程序
+python assess_quality.py
+```
+之后按默认配置，这两个程序每天分别执行抓取和评估工作。
+
+#### 如要使用ip
+从数据库中按照```score```排名获取就可以。
+
+### 问题反馈
+联系邮箱：myfancoo@qq.com 欢迎指正。
