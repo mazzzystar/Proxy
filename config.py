@@ -19,7 +19,7 @@ port = 3306
 user = 'root'
 
 # 数据库密码
-passwd = 'fancoo'
+passwd = '123456'
 
 # 数据库名
 DB_NAME = 'proxies'
