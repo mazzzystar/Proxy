@@ -179,7 +179,7 @@ class IPFactory:
                     print 'succeed: ' + p + '\t' + " in " + format(end-start, '0.2f') + 's'
                     # 追加代理ip到返回的set中
                     results.add(p)
-            except OSError:
+            except:
                 print 'timeout:', p
 
         return results
@@ -195,6 +195,7 @@ class IPFactory:
             valid_ip = self.get_valid_ip(valid_ip, timeout)
             # 停一下
             if i < round-1:
+                print ">>>>>>>\tRound"+str(i+2)+"\t还有30秒开始\t<<<<<<<<<<"
                 time.sleep(30)
 
         # 返回可用数据
