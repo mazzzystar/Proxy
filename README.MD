@@ -43,9 +43,9 @@ CHECK_TIME_INTERVAL = 24*3600  # 每天更新一次
   原来的考虑是```score = success_rate / avg_response_time```, 即：评分=成功率/平均响应时间， 考虑到检测合格过100次的老ip比新ip更有价值，检测次数也被引入评分。
 
 ### 使用
+有`ip_pool.py`和`assess_quality.py`两个程序，前者负责每天抓ip存进数据库，后者负责数据库中ip的清理和评估。
 
 #### 运行程序
-有`ip_pool.py`和`assess_quality.py`两个程序，前者负责每天抓ip存进数据库，后者负责数据库中ip的清理和评估。
 ```bash
 python ip_pool.py
 # 等待上述程序抓取完结果后再运行评测程序
@@ -53,8 +53,29 @@ python assess_quality.py
 ```
 之后按默认配置，这两个程序每天分别执行抓取和评估工作。
 
-#### 如要使用ip
-从数据库中按照```score```排名获取就可以。
+#### 使用Demo
+以抓取[豆瓣](https://www.douban.com/)主页为例：
+```python
+# 访问数据库拿到代理
+ip_list = []
+try:
+    cursor.execute('SELECT content FROM %s' % cfg.TABLE_NAME)
+    result = cursor.fetchall()
+    for i in result:
+        ip_list.append(i[0])
+except Exception as e:
+    print e
+finally:
+    cursor.close()
+    conn.close()
+
+# 利用代理抓取豆瓣页面
+for i in ip_list:
+    proxy = {'http': 'http://'+i}
+    url = "https://www.douban.com/"
+    r = requests.get(url, proxies=proxy, timeout=4)
+    print r.text
+```
 
 ### 问题反馈
 联系邮箱：myfancoo@qq.com 欢迎指正。
