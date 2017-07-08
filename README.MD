@@ -76,6 +76,7 @@ for i in ip_list:
     r = requests.get(url, proxies=proxy, timeout=4)
     print r.text
 ```
+详见[crawl_demo.py](https://github.com/fancoo/Proxy/blob/master/crawl_demo.py)。
 
 ### 问题反馈
 联系邮箱：myfancoo@qq.com 欢迎指正。
