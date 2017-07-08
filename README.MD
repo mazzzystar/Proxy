@@ -53,7 +53,7 @@ python assess_quality.py
 ```
 之后按默认配置，这两个程序每天分别执行抓取和评估工作。
 
-#### 使用Demo
+#### 使用代理Demo
 以抓取[豆瓣](https://www.douban.com/)主页为例：
 ```python
 # 访问数据库拿到代理
