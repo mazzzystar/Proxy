@@ -175,12 +175,12 @@ class IPFactory:
                 # 请求结束时间
                 end = time.time()
                 # 判断是否可用
-                if r.text is not None:
+                if r.status_code == 200:
                     print 'succeed: ' + p + '\t' + " in " + format(end-start, '0.2f') + 's'
                     # 追加代理ip到返回的set中
                     results.add(p)
-            except:
-                print 'timeout:', p
+            except requests.ConnectionError, e:
+                print p, e
 
         return results
 
