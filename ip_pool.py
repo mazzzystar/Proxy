@@ -160,7 +160,7 @@ class IPFactory:
         代理ip可用性测试
         """
         # 设置请求地址
-        url = 'https://www.baidu.com'
+        url = 'http://httpbin.org/get?show_env=1'
 
         # 可用代理结果
         results = set()
