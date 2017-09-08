@@ -3,10 +3,10 @@ Proxy
 一个小巧的代理ip抓取+评估+存储一体化的工具,使用requests+mysql完成。
 
 ### 使用
-有`ip_pool.py`和`assess_quality.py`两个程序，前者负责每天抓ip存进数据库，后者负责数据库中ip的清理和评估。
+有`ip_pool.py`和`assess_quality.py`两个程序，前者负责每天抓ip/评估/存进数据库，后者负责数据库中ip的清理和打分。
 
 #### 运行程序
-```bash
+```python
 # 定期抓取+评估+存储代理ip
 python ip_pool.py
 
@@ -15,7 +15,7 @@ python assess_quality.py
 ```
 之后按默认配置，这两个程序每天分别执行抓取和评估工作。
 
-#### 使用代理Demo
+#### 代理使用Demo
 以抓取[github](https://www.github.com/)主页为例：
 ```python
 # 访问数据库拿到代理
@@ -31,7 +31,7 @@ finally:
     cursor.close()
     conn.close()
 
-# 利用代理抓取豆瓣页面
+# 利用代理抓取github页面
 for i in ip_list:
     proxy = {'http': 'http://'+i}
     url = "https://www.github.com/"

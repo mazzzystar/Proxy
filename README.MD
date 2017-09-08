@@ -4,7 +4,7 @@ A tiny tool of crawling, assessing, storing some useful proxies.[中文版](http
 
 ### Construct your ip pool
 First make sure `mysql` has been installed in your machine, and modify db connection information in `config.py`.
-```bash
+```python
 # crawl, assess and store proxies
 python ip_pool.py
 
@@ -17,7 +17,7 @@ python assess_quality.py
 
 Crawl [github](https://www.github.com/) homepage data:
 ```python
-# visit database to get proxies
+# visit database to get all proxies
 ip_list = []
 try:
     cursor.execute('SELECT content FROM %s' % cfg.TABLE_NAME)
