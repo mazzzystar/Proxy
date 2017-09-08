@@ -6,6 +6,7 @@ Proxy
 有`ip_pool.py`和`assess_quality.py`两个程序，前者负责每天抓ip/评估/存进数据库，后者负责数据库中ip的清理和打分。
 
 #### 运行程序
+首先确保你的电脑安装了`mysql`，此外你需要在`config.py`里将配置修改为自己数据库配置。
 ```python
 # 定期抓取+评估+存储代理ip
 python ip_pool.py
