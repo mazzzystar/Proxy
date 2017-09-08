@@ -1,43 +1,44 @@
 # coding:utf-8
 
-# 从代理ip网站上总共要爬取的ip页数。一般每页20条，小项目(20-30个代理ip即可完成的)可以设置为1-2页。
-page_num = 3
+"""
+Page number that you crawl from those websites.
+* if your crawl task is not heavy, set page_num=2~5
+* if you'd like to keep a proxies pool, page_num=10 can meet your need.
+"""
+page_num = 1
 
-# 对已经检测成功的ip测试轮次。
-examine_round = 3
+# ip test timeout.
+timeout = 4
 
-# 超时时间。代理ip在测试过程中的超时时间。
-timeout = 2
-
-# 数据库链接地址
+# database host
 host = '127.0.0.1'
 
-# 数据库链接端口
+# database host
 port = 3306
 
-# 数据库链接用户名
+# db user
 user = 'root'
 
-# 数据库密码
+# db password
 passwd = '123456'
 
-# 数据库名
+# db name
 DB_NAME = 'proxies'
 
-# 表名
+# table name
 TABLE_NAME = 'valid_ip'
 
-# 数据库字符
+# encode
 charset = 'utf8'
 
-# 1个代理ip最大容忍失败次数，超过则从db中删去。
+# max failure times of an ip, if exceed, delete it from db.
 USELESS_TIME = 4
 
-# 1个代理ip最小容忍成功率
+# lowest success rate of an ip, if exceed, delete it from db.
 SUCCESS_RATE = 0.8
 
-# 超时惩罚时间
+# timeout punishment
 TIME_OUT_PENALTY = 10
 
-# 每隔多久检测一次
+# ip quality assessment time interval. (currently once per day.)
 CHECK_TIME_INTERVAL = 24*3600

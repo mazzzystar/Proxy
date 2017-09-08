@@ -5,33 +5,31 @@ import requests
 from lxml import etree
 import pymysql as mdb
 import datetime
+from multiprocessing import Process, Manager
+import random
 
 
 class IPFactory:
     """
-    代理ip抓取/评估/存储一体化。
+    * crawl
+    * evaluation
+    * storage
     """
+
     def __init__(self):
         self.page_num = cfg.page_num
-        self.round = cfg.examine_round
         self.timeout = cfg.timeout
         self.all_ip = set()
 
-        # 创建数据库
+        # init database
         self.create_db()
-
-        # # 抓取全部ip
-        # current_ips = self.get_all_ip()
-        # # 获取有效ip
-        # valid_ip = self.get_the_best(current_ips, self.timeout, self.round)
-        # print valid_ip
 
     def create_db(self):
         """
-        创建数据库用于保存有效ip
+        create database if not exists.
         """
-        # 创建数据库/表语句
-        # 创建数据库
+
+        '''sql statement'''
         drop_db_str = 'drop database if exists ' + cfg.DB_NAME + ' ;'
         create_db_str = 'create database ' + cfg.DB_NAME + ' ;'
         # 选择该数据库
@@ -46,7 +44,7 @@ class IPFactory:
           `score` float(5,2) NOT NULL DEFAULT '0.00'
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8;"""
 
-        # 连接数据库
+        # database connection
         conn = mdb.connect(cfg.host, cfg.user, cfg.passwd)
         cursor = conn.cursor()
         try:
@@ -56,27 +54,25 @@ class IPFactory:
             cursor.execute(create_table_str)
             conn.commit()
         except OSError:
-            print "无法创建数据库！"
+            print "cannot create database! please check your username & password."
         finally:
             cursor.close()
             conn.close()
 
     def get_content(self, url, url_xpath, port_xpath):
         """
-        使用xpath解析网页内容,并返回ip列表。
+        parse web html using xpath
+        return ip list.
         """
-        # 返回列表
         ip_list = []
 
         try:
-            # 设置请求头信息
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
 
-            # 获取页面数据
             results = requests.get(url, headers=headers, timeout=4)
             tree = etree.HTML(results.text)
 
-            # 提取ip:port
+            # parse [ip:port] pairs.
             url_results = tree.xpath(url_xpath)
             port_results = tree.xpath(port_xpath)
             urls = [line.strip() for line in url_results]
@@ -84,13 +80,13 @@ class IPFactory:
 
             if len(urls) == len(ports):
                 for i in range(len(urls)):
-                    # 匹配ip:port对
+                    # match each ip with it's port to the format like "127.0.0.1:80"
                     full_ip = urls[i]+":"+ports[i]
-                    # 此处利用all_ip对过往爬取的ip做了记录，下次再爬时如果发现
-                    # 已经爬过，就不再加入ip列表。
+
+                    # if current ip has been crawled
                     if full_ip in self.all_ip:
                         continue
-                    # 存储
+
                     ip_list.append(full_ip)
         except Exception as e:
             print 'get proxies error: ', e
@@ -99,26 +95,27 @@ class IPFactory:
 
     def get_all_ip(self):
         """
-        各大网站抓取的ip聚合。
+        merge the ip crawled from several websites.
         """
-        # 有2个概念：all_ip和current_all_ip。前者保存了历次抓取的ip，后者只保存本次的抓取。
         current_all_ip = set()
 
         ##################################
-        # 66ip网
+        # 66ip (http://www.66ip.cn/)
         ###################################
         url_xpath_66 = '/html/body/div[last()]//table//tr[position()>1]/td[1]/text()'
         port_xpath_66 = '/html/body/div[last()]//table//tr[position()>1]/td[2]/text()'
         for i in xrange(self.page_num):
             url_66 = 'http://www.66ip.cn/' + str(i+1) + '.html'
             results = self.get_content(url_66, url_xpath_66, port_xpath_66)
-            self.all_ip.update(results)
-            current_all_ip.update(results)
-            # 停0.5s再抓取
-            time.sleep(0.5)
+
+            if len(results):
+                self.all_ip.update(results)
+                current_all_ip.update(results)
+                # wait 0.5 secs.
+                time.sleep(0.5)
 
         ##################################
-        # xici代理
+        # xicidaili (http://www.xicidaili.com/nn/)
         ###################################
         url_xpath_xici = '//table[@id="ip_list"]//tr[position()>1]/td[position()=2]/text()'
         port_xpath_xici = '//table[@id="ip_list"]//tr[position()>1]/td[position()=3]/text()'
@@ -130,7 +127,7 @@ class IPFactory:
             time.sleep(0.5)
 
         ##################################
-        # mimiip网
+        # mimiip (http://www.mimiip.com/gngao/)
         ###################################
         url_xpath_mimi = '//table[@class="list"]//tr[position()>1]/td[1]/text()'
         port_xpath_mimi = '//table[@class="list"]//tr[position()>1]/td[2]/text()'
@@ -142,7 +139,7 @@ class IPFactory:
             time.sleep(0.5)
 
         ##################################
-        # kuaidaili网
+        # kuaidaili (http://www.kuaidaili.com/)
         ###################################
         url_xpath_kuaidaili = '//td[@data-title="IP"]/text()'
         port_xpath_kuaidaili = '//td[@data-title="PORT"]/text()'
@@ -153,117 +150,123 @@ class IPFactory:
             current_all_ip.update(results)
             time.sleep(0.5)
 
+        print current_all_ip
+        print ">>>>>>>>>>>>>> All proxies has been crawled <<<<<<<<<<<"
         return current_all_ip
 
-    def get_valid_ip(self, ip_set, timeout):
+    def get_valid_ip(self, ip_set, manager_list, timeout):
         """
-        代理ip可用性测试
+        test if ip is valid.
         """
-        # 设置请求地址
-        url = 'http://httpbin.org/get?show_env=1'
+        # request url.
+        # url = 'http://httpbin.org/get?show_env=1'
+        url = 'http://github.com'
 
-        # 可用代理结果
-        results = set()
-
-        # 挨个检查代理是否可用
+        # check proxy one by one
         for p in ip_set:
             proxy = {'http': 'http://'+p}
             try:
-                # 请求开始时间
                 start = time.time()
                 r = requests.get(url, proxies=proxy, timeout=timeout)
-                # 请求结束时间
                 end = time.time()
-                # 判断是否可用
+
+                # judge if proxy valid
                 if r.status_code == 200:
-                    print 'succeed: ' + p + '\t' + " in " + format(end-start, '0.2f') + 's'
-                    # 追加代理ip到返回的set中
-                    results.add(p)
-            except requests.ConnectionError, e:
-                print p, e
+                    print 'succeed: ' + p + '\t' + " succeed in " + format(end-start, '0.4f') + 's!'
+                    # add to result
+                    manager_list.append(p)
+            except Exception:
+                print p + "\t timeout."
 
-        return results
-
-    def get_the_best(self, valid_ip, timeout, round):
+    def multi_thread_validation(self, ip_set, manager_list, timeout, thread=50):
         """
-        N轮检测ip列表，避免"辉煌的15分钟"
+        use multiple process to accelerate the judgement of valid proxies.
         """
-        # 循环检查次数
-        for i in range(round):
-            print "\n>>>>>>>\tRound\t"+str(i+1)+"\t<<<<<<<<<<"
-            # 检查代理是否可用
-            valid_ip = self.get_valid_ip(valid_ip, timeout)
-            # 停一下
-            if i < round-1:
-                print ">>>>>>>\tRound"+str(i+2)+"\t还有30秒开始\t<<<<<<<<<<"
-                time.sleep(30)
+        if len(ip_set) < thread:
+            thread = len(ip_set)
 
-        # 返回可用数据
-        return valid_ip
+        # divide ip_set to blocks for later multiprocess.
+        slice_len = len(ip_set) / thread
+
+        jobs = []
+        for i in xrange(thread-1):
+            part = set(random.sample(ip_set, slice_len))
+            ip_set -= part
+            p = Process(target=self.get_valid_ip, args=(part, manager_list, timeout))
+            jobs.append(p)
+            p.start()
+
+        # the last slice of ip_set.
+        p = Process(target=self.get_valid_ip, args=(ip_set, manager_list, timeout))
+        p.start()
+        jobs.append(p)
+
+        # join threads
+        for job in jobs:
+            if job.is_alive():
+                job.join()
 
     def save_to_db(self, valid_ips):
         """
-        将可用的ip存储进mysql数据库
+        save all valid proxies into db
         """
         if len(valid_ips) == 0:
-            print "本次没有抓到可用ip。"
+            print "not proxy available for this time."
             return
-        # 连接数据库
-        print "\n>>>>>>>>>>>>>>>>>>>> 代理数据入库处理 Start  <<<<<<<<<<<<<<<<<<<<<<\n"
+
+        # store valid proxies into db.
+        print "\n>>>>>>>>>>>>>>>>>>>> Insert to database Start  <<<<<<<<<<<<<<<<<<<<<<"
         conn = mdb.connect(cfg.host, cfg.user, cfg.passwd, cfg.DB_NAME)
         cursor = conn.cursor()
         try:
             for item in valid_ips:
-                # 检查表中是否存在数据
+                # check if current ip exists.
                 item_exist = cursor.execute('SELECT * FROM %s WHERE content="%s"' %(cfg.TABLE_NAME, item))
 
-                # 新增代理数据入库
+                # it's new ip
                 if item_exist == 0:
-                    # 插入数据
                     n = cursor.execute('INSERT INTO %s VALUES("%s", 1, 0, 0, 1.0, 2.5)' %(cfg.TABLE_NAME, item))
                     conn.commit()
 
-                    # 输出入库状态
                     if n:
-                        print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+item+" 插入成功。\n"
+                        print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+item+" insert successfully."
                     else:
-                        print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+item+" 插入失败。\n"
+                        print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+item+" insert failed."
 
                 else:
-                    print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+ item +" 已存在。\n"
+                    print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" "+ item + " exists."
         except Exception as e:
-            print "入库失败：" + str(e)
+            print "store to db failed：" + str(e)
         finally:
             cursor.close()
             conn.close()
-        print "\n>>>>>>>>>>>>>>>>>>>> 代理数据入库处理 End  <<<<<<<<<<<<<<<<<<<<<<\n"
+        print ">>>>>>>>>>>>>>>>>>>> Insert to database Ended  <<<<<<<<<<<<<<<<<<<<<<"
+        print "Finished."
 
-    def get_proxies(self):
+    def get_proxies(self, manager_list):
         ip_list = []
 
-        # 连接数据库
+        # db connection
         conn = mdb.connect(cfg.host, cfg.user, cfg.passwd, cfg.DB_NAME)
         cursor = conn.cursor()
 
-        # 检查数据表中是否有数据
         try:
             ip_exist = cursor.execute('SELECT * FROM %s ' % cfg.TABLE_NAME)
-
-            # 提取数据
             result = cursor.fetchall()
 
-            # 若表里有数据　直接返回，没有则抓取再返回
+            # if exists proxies in db, fetch and return.
             if len(result):
                 for item in result:
                     ip_list.append(item[0])
             else:
-                # 获取代理数据
+                # crawl more proxies.
                 current_ips = self.get_all_ip()
-                valid_ips = self.get_the_best(current_ips, self.timeout, self.round)
+                self.multi_thread_validation(current_ips, manager_list, cfg.timeout)
+                valid_ips = manager_list
                 self.save_to_db(valid_ips)
                 ip_list.extend(valid_ips)
         except Exception as e:
-            print "从数据库获取ip失败！"
+            print "get ip from database failed." + str(e)
         finally:
             cursor.close()
             conn.close()
@@ -274,11 +277,13 @@ class IPFactory:
 def main():
     ip_pool = IPFactory()
     while True:
+        manager = Manager()
+        manager_list = manager.list()
         current_ips = ip_pool.get_all_ip()
-        # 获取有效ip
-        valid_ip = ip_pool.get_the_best(current_ips, cfg.timeout, cfg.examine_round)
-        print valid_ip
-        ip_pool.save_to_db(valid_ip)
+        ip_pool.multi_thread_validation(current_ips, manager_list, cfg.timeout)
+        print "\n>>>>>>>>>>>>> Valid proxies <<<<<<<<<<"
+        print manager_list + '\n'
+        ip_pool.save_to_db(manager_list)
         time.sleep(cfg.CHECK_TIME_INTERVAL)
 
 if __name__ == '__main__':

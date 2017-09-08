@@ -1,62 +1,23 @@
-一个小巧的代理ip抓取+评估+存储一体化的工具,使用requests+mysql完成。
+Proxy
+===============
+A tiny tool of crawling, assessing, storing some useful proxies.[中文版](https://github.com/fancoo/Proxy/blob/master/README.zh-cn.md)
 
-### 简介
-
-程序有如下几个功能：
-
-* 每天从多个代理ip网站上抓下最新高匿ip数据。
-* 经过筛选后的ip将存入数据库。
-* 存入数据库的ip每天也要经过测试，存在剔除、评分机制，多次不合格的ip将被删除，每个ip都被评分，我们最终可以按得分排名获得稳定、低响应时间的优质ip。
-   
-存储如下图所示：
-![ip在数据库中的存储结构](https://github.com/fancoo/Proxy/blob/master/images/data.png)
-
-
-### 参数
-```python
-USELESS_TIME = 4   # 最大失效次数
-SUCCESS_RATE = 0.8
-TIME_OUT_PENALTY = 10  # 超时惩罚时间
-CHECK_TIME_INTERVAL = 24*3600  # 每天更新一次
-```
-除数据库配置参数外，主要用到的几个参数说明如下：
-
-* ```USELESS_TIME```和```SUCCESS_RATE```是配合使用的，当某个```ip```的```USELESS_TIME < 4 && SUCCESS_RATE < 0.8```时（同时兼顾到ip短期和长期的检测表现），则剔除该ip。
-* ```TIME_OUT_PENALTY```， 当某个ip在某次检测时失效，而又没有达到上一条的条件时（比如检测了100次后第一次出现超时），设置一个```response_time```的惩罚项，此处为10秒。
-* ```CHECK_TIME_INTERVAL```， 检测周期。此处设置为每隔12小时检测一次数据库里每一个ip的可用性。
-
-
-### 策略
-
-* 每天如下5个代理ip网站上抓下最新高匿ip数据：
-  * ```mimi```
-  * ```66ip```
-  * ```xici```
-  * ```cn-proxy```
-  * ```kuaidaili```
-* N轮筛选
-  * 收集到的ip集合将经过N轮，间隔为t的连接测试，对于每一个ip，必须全部通过这N轮测试才能最终进入数据库。如果当天进入数据库的ip较少，则暂停一段时间（一天）再抓。
-
-* 数据库中ip评价准则
-  * 检测过程中累计超时次数>```USELESS_TIME```&&成功率<```SUCCESS_RATE```就被剔除。  
-  ```score = (success_rate + test_times / 500) / avg_response_time```  
-  原来的考虑是```score = success_rate / avg_response_time```, 即：评分=成功率/平均响应时间， 考虑到检测合格过100次的老ip比新ip更有价值，检测次数也被引入评分。
-
-### 使用
-有`ip_pool.py`和`assess_quality.py`两个程序，前者负责每天抓ip存进数据库，后者负责数据库中ip的清理和评估。
-
-#### 运行程序
+### Construct your ip pool
+First make sure `mysql` has been installed in your machine, and modify db connection information in `config.py`.
 ```bash
+# crawl, assess and store proxies
 python ip_pool.py
-# 等待上述程序抓取完结果后再运行评测程序
+
+# assess proxies quality in db periodically.
 python assess_quality.py
 ```
-之后按默认配置，这两个程序每天分别执行抓取和评估工作。
 
-#### 使用代理Demo
-以抓取[豆瓣](https://www.douban.com/)主页为例：
+### Demo on how to use these proxies.
+**Please first construct your ip pool.**
+
+Crawl [github](https://www.github.com/) homepage data:
 ```python
-# 访问数据库拿到代理
+# visit database to get proxies
 ip_list = []
 try:
     cursor.execute('SELECT content FROM %s' % cfg.TABLE_NAME)
@@ -69,14 +30,14 @@ finally:
     cursor.close()
     conn.close()
 
-# 利用代理抓取豆瓣页面
+# use this proxies to crawl website
 for i in ip_list:
     proxy = {'http': 'http://'+i}
     url = "https://www.douban.com/"
     r = requests.get(url, proxies=proxy, timeout=4)
     print r.text
 ```
-详见[crawl_demo.py](https://github.com/fancoo/Proxy/blob/master/crawl_demo.py)。
+More detail in [crawl_demo.py](https://github.com/fancoo/Proxy/blob/master/crawl_demo.py)。
 
-### 问题反馈
-联系邮箱：myfancoo@qq.com 欢迎指正。
+### Contact
+myfancoo@qq.com
