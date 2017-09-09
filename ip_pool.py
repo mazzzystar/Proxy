@@ -32,9 +32,7 @@ class IPFactory:
         '''sql statement'''
         drop_db_str = 'drop database if exists ' + cfg.DB_NAME + ' ;'
         create_db_str = 'create database ' + cfg.DB_NAME + ' ;'
-        # 选择该数据库
         use_db_str = 'use ' + cfg.DB_NAME + ' ;'
-        # 创建表格
         create_table_str = "CREATE TABLE " + cfg.TABLE_NAME + """(
           `content` varchar(30) NOT NULL,
           `test_times` int(5) NOT NULL DEFAULT '0',
