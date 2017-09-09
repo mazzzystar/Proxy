@@ -33,7 +33,7 @@ finally:
 # use this proxies to crawl website
 for i in ip_list:
     proxy = {'http': 'http://'+i}
-    url = "https://www.douban.com/"
+    url = "https://www.github.com/"
     r = requests.get(url, proxies=proxy, timeout=4)
     print r.text
 ```
