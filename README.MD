@@ -1,6 +1,6 @@
 Proxy
 ===============
-A tiny tool of crawling, assessing, storing some useful proxies.[中文版](https://github.com/fancoo/Proxy/blob/master/README.zh-cn.md)
+A tiny tool for crawling, assessing, storing some useful proxies.[中文版](https://github.com/fancoo/Proxy/blob/master/README.zh-cn.md)
 
 ### Construct your ip pool
 First make sure `mysql` has been installed in your machine, and modify db connection information in `config.py`.
