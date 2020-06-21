@@ -5,7 +5,7 @@ A tiny tool for crawling, assessing, storing some useful proxies.[中文版](htt
 ### Construct your ip pool
 Install `mysql`:
 ```
-pip install pymysql
+pip install pymysql requests
 ```
 Modify db connection information in `config.py`.
 ```python
